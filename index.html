@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supermarket Management System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Supermarket Management System</h1>
+            <div class="header-info">
+                <span id="currentDate"></span>
+                <span id="currentTime"></span>
+            </div>
+        </header>
+
+        <!-- Home Screen -->
+        <div id="homeScreen" class="screen active">
+            <div class="tiles-container">
+                <div class="tile" onclick="navigateTo('receiving')">
+                    <div class="tile-icon">📦</div>
+                    <h2>Receiving</h2>
+                    <p>Add new products and manage inventory intake</p>
+                </div>
+                <div class="tile" onclick="navigateTo('billing')">
+                    <div class="tile-icon">💳</div>
+                    <h2>Billing</h2>
+                    <p>Process sales and scan barcodes</p>
+                </div>
+                <div class="tile" onclick="navigateTo('stock')">
+                    <div class="tile-icon">📊</div>
+                    <h2>Stock</h2>
+                    <p>View and manage inventory levels</p>
+                </div>
+                <div class="tile" onclick="navigateTo('reports')">
+                    <div class="tile-icon">📈</div>
+                    <h2>Reports</h2>
+                    <p>Generate and export reports</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Receiving Screen -->
+        <div id="receivingScreen" class="screen">
+            <div class="screen-header">
+                <button class="back-btn" onclick="navigateTo('home')">← Back</button>
+                <h2>Product Receiving</h2>
+            </div>
+            <div class="content-area">
+                <form id="receivingForm" class="form-card">
+                    <div class="form-group">
+                        <label for="productName">Product Name</label>
+                        <input type="text" id="productName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="barcode">Barcode</label>
+                        <input type="text" id="barcode" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="category">Category</label>
+                            <select id="category" required>
+                                <option value="">Select Category</option>
+                                <option value="Groceries">Groceries</option>
+                                <option value="Beverages">Beverages</option>
+                                <option value="Dairy">Dairy</option>
+                                <option value="Frozen">Frozen</option>
+                                <option value="Bakery">Bakery</option>
+                                <option value="Personal Care">Personal Care</option>
+                                <option value="Household">Household</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="quantity">Quantity</label>
+                            <input type="number" id="quantity" min="1" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="costPrice">Cost Price</label>
+                            <input type="number" id="costPrice" step="0.01" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="sellingPrice">Selling Price</label>
+                            <input type="number" id="sellingPrice" step="0.01" min="0" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="expiryDate">Expiry Date (Optional)</label>
+                        <input type="date" id="expiryDate">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Product</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Billing Screen -->
+        <div id="billingScreen" class="screen">
+            <div class="screen-header">
+                <button class="back-btn" onclick="navigateTo('home')">← Back</button>
+                <h2>Billing</h2>
+            </div>
+            <div class="content-area billing-layout">
+                <div class="billing-left">
+                    <div class="barcode-scanner">
+                        <input type="text" id="barcodeInput" placeholder="Scan or enter barcode..." autofocus>
+                        <button onclick="addItemByBarcode()" class="btn">Add Item</button>
+                    </div>
+                    <div class="cart-items" id="cartItems">
+                        <table class="cart-table">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Price</th>
+                                    <th>Qty</th>
+                                    <th>Total</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cartTableBody">
+                                <tr class="empty-cart">
+                                    <td colspan="5">Cart is empty. Scan items to begin.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="billing-right">
+                    <div class="bill-summary">
+                        <h3>Bill Summary</h3>
+                        <div class="summary-row">
+                            <span>Subtotal:</span>
+                            <span id="subtotal">$0.00</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Tax (5%):</span>
+                            <span id="tax">$0.00</span>
+                        </div>
+                        <div class="summary-row total">
+                            <span>Total:</span>
+                            <span id="total">$0.00</span>
+                        </div>
+                        <div class="payment-section">
+                            <label>Payment Amount</label>
+                            <input type="number" id="paymentAmount" step="0.01" min="0" placeholder="0.00">
+                            <div class="change-display">
+                                <span>Change:</span>
+                                <span id="changeAmount">$0.00</span>
+                            </div>
+                        </div>
+                        <button onclick="completeSale()" class="btn btn-success">Complete Sale</button>
+                        <button onclick="clearCart()" class="btn btn-secondary">Clear Cart</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stock Screen -->
+        <div id="stockScreen" class="screen">
+            <div class="screen-header">
+                <button class="back-btn" onclick="navigateTo('home')">← Back</button>
+                <h2>Stock Management</h2>
+            </div>
+            <div class="content-area">
+                <div class="toolbar">
+                    <input type="text" id="stockSearch" placeholder="Search products..." oninput="filterStock()">
+                    <select id="categoryFilter" onchange="filterStock()">
+                        <option value="">All Categories</option>
+                        <option value="Groceries">Groceries</option>
+                        <option value="Beverages">Beverages</option>
+                        <option value="Dairy">Dairy</option>
+                        <option value="Frozen">Frozen</option>
+                        <option value="Bakery">Bakery</option>
+                        <option value="Personal Care">Personal Care</option>
+                        <option value="Household">Household</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <select id="stockFilter" onchange="filterStock()">
+                        <option value="all">All Stock</option>
+                        <option value="low">Low Stock (< 10)</option>
+                        <option value="out">Out of Stock</option>
+                    </select>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Barcode</th>
+                                <th>Product Name</th>
+                                <th>Category</th>
+                                <th>Quantity</th>
+                                <th>Cost Price</th>
+                                <th>Selling Price</th>
+                                <th>Expiry Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stockTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Screen -->
+        <div id="reportsScreen" class="screen">
+            <div class="screen-header">
+                <button class="back-btn" onclick="navigateTo('home')">← Back</button>
+                <h2>Reports</h2>
+            </div>
+            <div class="content-area">
+                <div class="reports-controls">
+                    <div class="form-group">
+                        <label>Report Type</label>
+                        <select id="reportType" onchange="generateReport()">
+                            <option value="sales">Sales Report</option>
+                            <option value="inventory">Inventory Report</option>
+                            <option value="low-stock">Low Stock Report</option>
+                            <option value="profit">Profit Analysis</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>From Date</label>
+                            <input type="date" id="fromDate">
+                        </div>
+                        <div class="form-group">
+                            <label>To Date</label>
+                            <input type="date" id="toDate">
+                        </div>
+                    </div>
+                    <div class="export-buttons">
+                        <button onclick="exportReport('excel')" class="btn btn-success">Export to Excel</button>
+                        <button onclick="exportReport('csv')" class="btn btn-primary">Export to CSV</button>
+                        <button onclick="exportReport('pdf')" class="btn btn-danger">Export to PDF</button>
+                    </div>
+                </div>
+                <div class="report-preview" id="reportPreview">
+                    <h3 id="reportTitle">Report Preview</h3>
+                    <div class="stats-cards" id="statsCards"></div>
+                    <div class="table-container">
+                        <table class="data-table" id="reportTable">
+                            <thead id="reportTableHead"></thead>
+                            <tbody id="reportTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Stock Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Product</h3>
+                <span class="close" onclick="closeEditModal()">&times;</span>
+            </div>
+            <form id="editForm">
+                <input type="hidden" id="editBarcode">
+                <div class="form-group">
+                    <label>Product Name</label>
+                    <input type="text" id="editProductName" required>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="editCategory" required>
+                        <option value="Groceries">Groceries</option>
+                        <option value="Beverages">Beverages</option>
+                        <option value="Dairy">Dairy</option>
+                        <option value="Frozen">Frozen</option>
+                        <option value="Bakery">Bakery</option>
+                        <option value="Personal Care">Personal Care</option>
+                        <option value="Household">Household</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Quantity</label>
+                        <input type="number" id="editQuantity" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Cost Price</label>
+                        <input type="number" id="editCostPrice" step="0.01" min="0" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Selling Price</label>
+                        <input type="number" id="editSellingPrice" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Expiry Date</label>
+                        <input type="date" id="editExpiryDate">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" onclick="closeEditModal()" class="btn btn-secondary">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
