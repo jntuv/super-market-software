@@ -9,6 +9,12 @@ let currentEditBarcode = null;
 let receivingExistingProduct = null;
 let receivingBarcodeLookupTimer = null;
 
+// Billing config and persistence
+let taxPercent = parseFloat(localStorage.getItem('taxPercent') || '5');
+let lastBillNumber = parseInt(localStorage.getItem('lastBillNumber') || '0');
+let lastSale = JSON.parse(localStorage.getItem('lastSale') || 'null');
+let storeDetails = JSON.parse(localStorage.getItem('storeDetails') || 'null') || { name: '', phone: '', address: '', email: '' };
+
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
     updateDateTime();
@@ -16,6 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadProducts();
     setupEventListeners();
     setDefaultDates();
+    initBillingSettings();
+    initStoreSettings();
 });
 
 // Update date and time
@@ -318,17 +326,36 @@ function clearCart() {
 
 function updateBillSummary() {
     const subtotal = roundCurrency(cart.reduce((sum, item) => sum + item.total, 0));
-    const tax = roundCurrency(subtotal * 0.05); // 5% tax
+    const tax = roundCurrency(subtotal * (taxPercent / 100));
     const total = roundCurrency(subtotal + tax);
 
     document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
     document.getElementById('tax').textContent = `$${tax.toFixed(2)}`;
     document.getElementById('total').textContent = `$${total.toFixed(2)}`;
 
+    // Update tax percent label
+    const taxLabelEl = document.getElementById('taxPercentLabel');
+    if (taxLabelEl) taxLabelEl.textContent = `${taxPercent}%`;
+
+    // Update bill number display (draft or last known)
+    const billLabel = document.getElementById('billNumber');
+    if (billLabel) {
+        if (lastSale && lastSale.sale_id) {
+            billLabel.textContent = `#${lastSale.sale_id}`;
+        } else if (lastBillNumber > 0) {
+            billLabel.textContent = `Next: #${lastBillNumber + 1}`;
+        } else {
+            billLabel.textContent = 'Draft';
+        }
+    }
+
     // Auto-fill payment amount with total
     document.getElementById('paymentAmount').value = total.toFixed(2);
 
     calculateChange();
+
+    // Enable/disable print button depending on availability
+    updatePrintButtonState();
 }
 
 function calculateChange() {
@@ -339,6 +366,175 @@ function calculateChange() {
     document.getElementById('changeAmount').textContent = `$${change >= 0 ? change.toFixed(2) : '0.00'}`;
 }
 
+// ---------------------- Billing Settings & Printing ----------------------
+function initBillingSettings() {
+    // Initialize tax input and labels
+    const taxInput = document.getElementById('taxPercentInput');
+    if (taxInput) taxInput.value = taxPercent;
+
+    const taxLabelEl = document.getElementById('taxPercentLabel');
+    if (taxLabelEl) taxLabelEl.textContent = `${taxPercent}%`;
+
+    const billLabel = document.getElementById('billNumber');
+    if (billLabel) {
+        if (lastSale && lastSale.sale_id) billLabel.textContent = `#${lastSale.sale_id}`;
+        else if (lastBillNumber > 0) billLabel.textContent = `Next: #${lastBillNumber + 1}`;
+        else billLabel.textContent = 'Draft';
+    }
+
+    updatePrintButtonState();
+}
+
+function saveTaxPercent() {
+    const val = parseFloat(document.getElementById('taxPercentInput').value);
+    if (isNaN(val) || val < 0 || val > 100) {
+        showAlert('Invalid tax percentage (0-100)', 'error');
+        return;
+    }
+
+    taxPercent = val;
+    localStorage.setItem('taxPercent', String(taxPercent));
+
+    const taxLabelEl = document.getElementById('taxPercentLabel');
+    if (taxLabelEl) taxLabelEl.textContent = `${taxPercent}%`;
+
+    showAlert('Tax percentage saved', 'success');
+    // Recalculate summary
+    updateBillSummary();
+    navigateTo('home');
+}
+
+function initStoreSettings() {
+    const s = storeDetails || { name: '', phone: '', address: '', email: '' };
+    if (document.getElementById('storeNameInput')) {
+        document.getElementById('storeNameInput').value = s.name || '';
+        document.getElementById('storePhoneInput').value = s.phone || '';
+        document.getElementById('storeEmailInput').value = s.email || '';
+        document.getElementById('storeAddressInput').value = s.address || '';
+    }
+    updateStoreHeader();
+}
+
+function saveStoreDetails() {
+    const name = document.getElementById('storeNameInput').value.trim();
+    const phone = document.getElementById('storePhoneInput').value.trim();
+    const email = document.getElementById('storeEmailInput').value.trim();
+    const address = document.getElementById('storeAddressInput').value.trim();
+
+    if (!name || !phone) {
+        showAlert('Store name and phone are required', 'error');
+        return;
+    }
+
+    storeDetails = { name, phone, email, address };
+    localStorage.setItem('storeDetails', JSON.stringify(storeDetails));
+    showAlert('Store details saved', 'success');
+    updateStoreHeader();
+    navigateTo('home');
+}
+
+function updateStoreHeader() {
+    const el = document.getElementById('storeNameHeader');
+    if (!el) return;
+    if (storeDetails && storeDetails.name) {
+        el.textContent = storeDetails.name;
+    } else {
+        el.textContent = '';
+    }
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
+function updatePrintButtonState() {
+    const btn = document.getElementById('printBillBtn');
+    const hasLastSale = !!lastSale;
+    const hasCart = cart && cart.length > 0;
+
+    if (!btn) return;
+
+    if (hasLastSale || hasCart) {
+        btn.disabled = false;
+        btn.classList.remove('disabled');
+    } else {
+        btn.disabled = true;
+        btn.classList.add('disabled');
+    }
+}
+
+function printBill() {
+    // Use lastSale if available (post-sale print), otherwise print current cart as draft
+    const sale = lastSale ? lastSale : {
+        sale_id: null,
+        items: cart,
+        subtotal: roundCurrency(cart.reduce((s, it) => s + it.total, 0)),
+        tax: roundCurrency((roundCurrency(cart.reduce((s, it) => s + it.total, 0)) * (taxPercent / 100))),
+        total: 0,
+        payment_amount: parseFloat(document.getElementById('paymentAmount').value) || 0,
+        change_amount: 0,
+        sale_date: new Date().toISOString()
+    };
+
+    sale.total = roundCurrency(sale.subtotal + sale.tax);
+    sale.change_amount = roundCurrency((sale.payment_amount || 0) - sale.total);
+
+    // Build printable HTML
+    let html = `<!doctype html><html><head><meta charset="utf-8"><title>Receipt</title><style>
+        body{font-family: Arial, sans-serif; padding:20px;}
+        .header{text-align:center;}
+        table{width:100%;border-collapse:collapse;margin-top:10px}
+        th,td{border-bottom:1px solid #ccc;padding:6px;text-align:left}
+        .totals{margin-top:10px;width:100%}
+        .totals td{padding:6px}
+        .small{font-size:12px;color:#555}
+    </style></head><body>`;
+
+    const s = storeDetails || {};
+    const storeNameEsc = escapeHtml(s.name || 'My Supermarket');
+    const storeAddrEsc = escapeHtml(s.address || '');
+    const storePhoneEsc = escapeHtml(s.phone || '');
+    const storeEmailEsc = escapeHtml(s.email || '');
+
+    html += `<div class="header"><h2>${storeNameEsc}</h2><div class="small">${new Date(sale.sale_date).toLocaleString()}</div>`;
+    if (storeAddrEsc) html += `<div class="small">${storeAddrEsc}</div>`;
+    if (storePhoneEsc) html += `<div class="small">Phone: ${storePhoneEsc}</div>`;
+    if (storeEmailEsc) html += `<div class="small">Email: ${storeEmailEsc}</div>`;
+    if (sale.sale_id) html += `<div><strong>Bill #: #${sale.sale_id}</strong></div>`;
+    else if (lastBillNumber > 0) html += `<div><strong>Bill Draft: #${lastBillNumber + 1}</strong></div>`;
+    else html += `<div><strong>Bill: Draft</strong></div>`;
+
+    html += `</div><table><thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead><tbody>`;
+
+    if (sale.items && sale.items.length > 0) {
+        for (const it of sale.items) {
+            html += `<tr><td>${it.product_name}</td><td>${it.quantity}</td><td>$${it.price.toFixed(2)}</td><td>$${it.total.toFixed(2)}</td></tr>`;
+        }
+    } else {
+        html += `<tr><td colspan="4">No items</td></tr>`;
+    }
+
+    html += `</tbody></table>`;
+    html += `<table class="totals"><tr><td class="small">Subtotal:</td><td class="small">$${sale.subtotal.toFixed(2)}</td></tr>`;
+    html += `<tr><td class="small">Tax (${taxPercent}%):</td><td class="small">$${sale.tax.toFixed(2)}</td></tr>`;
+    html += `<tr><td class="small"><strong>Total:</strong></td><td class="small"><strong>$${sale.total.toFixed(2)}</strong></td></tr>`;
+    html += `<tr><td class="small">Payment:</td><td class="small">$${(sale.payment_amount || 0).toFixed(2)}</td></tr>`;
+    html += `<tr><td class="small">Change:</td><td class="small">$${(sale.change_amount || 0).toFixed(2)}</td></tr></table>`;
+    html += `<div class="small" style="margin-top:20px;text-align:center">Thank you for shopping!</div>`;
+    html += `</body></html>`;
+
+    const w = window.open('', '_blank', 'width=400,height=700');
+    if (w) {
+        w.document.write(html);
+        w.document.close();
+        w.focus();
+        w.print();
+    } else {
+        showAlert('Unable to open print window. Please allow popups.', 'error');
+    }
+}
+
 async function completeSale() {
     if (cart.length === 0) {
         showAlert('Cart is empty', 'warning');
@@ -346,7 +542,7 @@ async function completeSale() {
     }
 
     const subtotal = roundCurrency(cart.reduce((sum, item) => sum + item.total, 0));
-    const tax = roundCurrency(subtotal * 0.05);
+    const tax = roundCurrency(subtotal * (taxPercent / 100));
     const total = roundCurrency(subtotal + tax);
     const payment = parseFloat(document.getElementById('paymentAmount').value) || 0;
 
@@ -377,11 +573,38 @@ async function completeSale() {
 
         if (response.ok) {
             showAlert(`Sale completed! Change: $${change.toFixed(2)}`, 'success');
+
+            // Save last sale details for printing
+            lastSale = {
+                sale_id: result.sale_id || null,
+                items: saleData.items,
+                subtotal: saleData.subtotal,
+                tax: saleData.tax,
+                total: saleData.total,
+                payment_amount: saleData.payment_amount,
+                change_amount: saleData.change_amount,
+                sale_date: new Date().toISOString()
+            };
+
+            if (lastSale.sale_id) {
+                lastBillNumber = lastSale.sale_id;
+                localStorage.setItem('lastBillNumber', String(lastBillNumber));
+            }
+
+            localStorage.setItem('lastSale', JSON.stringify(lastSale));
+
+            // Clear cart and reset UI
             cart = [];
             updateCartDisplay();
             document.getElementById('paymentAmount').value = '';
             await loadProducts();
             document.getElementById('barcodeInput').focus();
+
+            // Update bill number display and enable print
+            const billLabel = document.getElementById('billNumber');
+            if (billLabel && lastSale.sale_id) billLabel.textContent = `#${lastSale.sale_id}`;
+
+            updatePrintButtonState();
         } else {
             showAlert(result.error || 'Failed to complete sale', 'error');
         }

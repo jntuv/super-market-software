@@ -11,6 +11,7 @@
         <header>
             <h1>Supermarket Management System</h1>
             <div class="header-info">
+                <span id="storeNameHeader"></span>
                 <span id="currentDate"></span>
                 <span id="currentTime"></span>
             </div>
@@ -38,6 +39,16 @@
                     <div class="tile-icon">📈</div>
                     <h2>Reports</h2>
                     <p>Generate and export reports</p>
+                </div>
+                <div class="tile" onclick="navigateTo('tax')">
+                    <div class="tile-icon">⚙️</div>
+                    <h2>Tax</h2>
+                    <p>Configure tax percentage for billing</p>
+                </div>
+                <div class="tile" onclick="navigateTo('store')">
+                    <div class="tile-icon">🏬</div>
+                    <h2>Store</h2>
+                    <p>Store details (name, phone, address, email)</p>
                 </div>
             </div>
         </div>
@@ -132,11 +143,15 @@
                     <div class="bill-summary">
                         <h3>Bill Summary</h3>
                         <div class="summary-row">
+                            <span>Bill #:</span>
+                            <span id="billNumber">Draft</span>
+                        </div>
+                        <div class="summary-row">
                             <span>Subtotal:</span>
                             <span id="subtotal">$0.00</span>
                         </div>
                         <div class="summary-row">
-                            <span>Tax (5%):</span>
+                            <span>Tax (<span id="taxPercentLabel">5%</span>):</span>
                             <span id="tax">$0.00</span>
                         </div>
                         <div class="summary-row total">
@@ -151,8 +166,11 @@
                                 <span id="changeAmount">$0.00</span>
                             </div>
                         </div>
-                        <button onclick="completeSale()" class="btn btn-success">Complete Sale</button>
-                        <button onclick="clearCart()" class="btn btn-secondary">Clear Cart</button>
+                        <div class="summary-actions">
+                            <button onclick="completeSale()" class="btn btn-success">Complete Sale</button>
+                            <button onclick="printBill()" id="printBillBtn" class="btn btn-primary">Print Bill</button>
+                            <button onclick="clearCart()" class="btn btn-secondary">Clear Cart</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -250,7 +268,58 @@
                 </div>
             </div>
         </div>
-    </div>
+
+        <!-- Tax Settings Screen -->
+        <div id="taxScreen" class="screen">
+            <div class="screen-header">
+                <button class="back-btn" onclick="navigateTo('home')">← Back</button>
+                <h2>Tax Settings</h2>
+            </div>
+            <div class="content-area">
+                <form id="taxForm" class="form-card" onsubmit="event.preventDefault(); saveTaxPercent();">
+                    <div class="form-group">
+                        <label for="taxPercentInput">Tax Percentage (%)</label>
+                        <input type="number" id="taxPercentInput" step="0.01" min="0" max="100" required>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="submit" class="btn btn-primary">Save</button>
+                        <button type="button" onclick="navigateTo('home')" class="btn btn-secondary">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Store Details Screen -->
+        <div id="storeScreen" class="screen">
+            <div class="screen-header">
+                <button class="back-btn" onclick="navigateTo('home')">← Back</button>
+                <h2>Store Details</h2>
+            </div>
+            <div class="content-area">
+                <form id="storeForm" class="form-card" onsubmit="event.preventDefault(); saveStoreDetails();">
+                    <div class="form-group">
+                        <label for="storeNameInput">Store Name</label>
+                        <input type="text" id="storeNameInput" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="storePhoneInput">Phone</label>
+                        <input type="text" id="storePhoneInput" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="storeEmailInput">Email</label>
+                        <input type="email" id="storeEmailInput">
+                    </div>
+                    <div class="form-group">
+                        <label for="storeAddressInput">Address</label>
+                        <textarea id="storeAddressInput"></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="submit" class="btn btn-primary">Save</button>
+                        <button type="button" onclick="navigateTo('home')" class="btn btn-secondary">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
 
     <!-- Edit Stock Modal -->
     <div id="editModal" class="modal">
